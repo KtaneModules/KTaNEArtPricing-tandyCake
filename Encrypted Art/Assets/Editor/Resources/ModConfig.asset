@@ -14,7 +14,7 @@ MonoBehaviour:
   id: artPricing
   title: Art Pricing
   author: Danny7007
-  description: "Who's buying these?!\n\nModule b\ty Danny7007\r\nmoduleID: artPricing\r\nmanual
+  description: "Who's buying these?!\n\nModule by Danny7007\r\nmoduleID: artPricing\r\nmanual
     can be found at ktane.timwi.de"
   version: 1.0.0
   outputFolder: build
