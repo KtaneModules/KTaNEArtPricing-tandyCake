@@ -115,8 +115,12 @@ public class ArtPricingScript : MonoBehaviour {
         {
             string binary = string.Empty;
             for (int i = 0; i < 4; i++)
-                binary += tagPicture[4*row + i];
+                binary += tagPicture[4 * row + i];
+            if (binary == "0001")
+                tag.text += " "; //1's are especially thin, so this will add a space before and after to ensure things don't look weirdly kerned.
             tag.text += Convert.ToString(Convert.ToInt32(binary, 2), 16).ToUpper(); //Converts the binary into hex and then appends it to the tag label
+            if (binary == "0001")
+                tag.text += " ";
         }
         for (int i = 0; i < 16; i++)
             tiles[i].GetComponent<MeshRenderer>().material = tileColors[displayedPicture[i]];
