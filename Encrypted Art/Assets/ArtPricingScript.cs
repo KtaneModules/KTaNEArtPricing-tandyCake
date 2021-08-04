@@ -2,10 +2,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using UnityEngine;
 using KModkit;
-using KeepCoding;
+using Rnd = UnityEngine.Random;
 
 public class ArtPricingScript : MonoBehaviour {
 
@@ -103,8 +102,8 @@ public class ArtPricingScript : MonoBehaviour {
     {
         for (int i = 0; i < 16; i++)
         {
-            displayedPicture[i] = UnityEngine.Random.Range(0, 2);
-            tagPicture[i] = UnityEngine.Random.Range(0, 2);
+            displayedPicture[i] = Rnd.Range(0, 2);
+            tagPicture[i] = Rnd.Range(0, 2);
             decryptedPicture[i] = displayedPicture[i] ^ tagPicture[i];
         }
     }
@@ -124,15 +123,15 @@ public class ArtPricingScript : MonoBehaviour {
         }
         for (int i = 0; i < 16; i++)
             tiles[i].GetComponent<MeshRenderer>().material = tileColors[displayedPicture[i]];
-        selectedBaseVal = UnityEngine.Random.Range(1, 13);
-        selectedMultiplier = UnityEngine.Random.Range(1, 5);
+        selectedBaseVal = Rnd.Range(1, 13);
+        selectedMultiplier = Rnd.Range(1, 5);
         UpdateDisplay();
     }
     void LogInfo()
     {
         Debug.LogFormat("[Art Pricing #{0}] The displayed grid is:", moduleId);
         LogGrid(displayedPicture, 4, 4, "░▓");
-        Debug.LogFormat("[Art Pricing #{0}] The label says {1}, which corresponds to the grid:", moduleId, tag.text);
+        Debug.LogFormat("[Art Pricing #{0}] The label says {1}, which corresponds to the grid:", moduleId, tag.text.Where(x => x != ' ').Join(""));
         LogGrid(tagPicture, 4, 4, "░▓");
         Debug.LogFormat("[Art Pricing #{0}] The decrypted grid:", moduleId);
         LogGrid(decryptedPicture, 4, 4, "░▓");
@@ -143,8 +142,9 @@ public class ArtPricingScript : MonoBehaviour {
     }
     void GetBaseVal()
     {
-        int[] edgeValues = new int[12] { 0, 1, 2, 3, 7, 11, 15, 14, 13, 12, 8, 4 }
-            .Select(x => decryptedPicture[x]).ToArray(); //Gets the region of cells around the border.
+        int[] edgeValues = new int[12] 
+        { 0, 1, 2, 3, 7, 11, 15, 14, 13, 12, 8, 4 }
+        .Select(x => decryptedPicture[x]).ToArray(); //Gets the region of cells around the border.
         bool[] visited = new bool[12];
         int currentPos = DateTime.Now.Month - 1; //Months are indexed at Jan == 1
         visited[currentPos] = true;
@@ -161,7 +161,7 @@ public class ArtPricingScript : MonoBehaviour {
     void GetMultiplier()
     {
         int[] center = new int[] { 5, 6, 9, 10 }.Select(x => decryptedPicture[x]).ToArray();
-        int binary = Convert.ToInt32( center.Select(x => x.ToString()).Join(""), 2 );
+        int binary = Convert.ToInt32( center.Join(""), 2 );
         int[] multiplierTable = new int[16] { 1, 3, 4, 1, 1, 3, 2, 4, 1, 4, 2, 3, 3, 2, 4, 2 };
         targetMultiplier = multiplierTable[binary]; //The above table works opposite from the one in the manual. It uses the center converted to binary as a key to obtain the correct exponent for 10.
         targetAnswer = targetBaseVal * (int)Math.Pow(10, targetMultiplier);
@@ -182,11 +182,28 @@ public class ArtPricingScript : MonoBehaviour {
     }
 
     string MoneyFormat(int input)
-        { return "$" + input.ToString("N0"); }
+    { 
+        return "$" + input.ToString("N0"); 
+    }
 
     #pragma warning disable 414
     private readonly string TwitchHelpMessage = @"Use <!{0} submit $3,000> to submit that number into the module.";
     #pragma warning restore 414
+
+    IEnumerator Press(KMSelectable btn, float wait)
+    {
+        btn.OnInteract();
+        yield return new WaitForSeconds(wait);
+    }
+    IEnumerator Submit(int submittedBase, int submittedMultiplier)
+    {
+        while (selectedBaseVal != submittedBase)
+            yield return Press(selectedBaseVal < submittedBase ? rightArrow : leftArrow, 0.15f);
+        while (selectedMultiplier != submittedMultiplier)
+            yield return Press(selectedMultiplier < submittedMultiplier ? upArrow : downArrow, 0.15f);
+        yield return Press(submitButton, 0.15f);
+        submitButton.OnInteract();
+    }
 
     IEnumerator ProcessTwitchCommand (string command)
     {
@@ -195,9 +212,9 @@ public class ArtPricingScript : MonoBehaviour {
         if ((parameters[0] != "SUBMIT" && parameters[0] != "PAY") || parameters.Count != 2)
             yield break;
         parameters.RemoveAt(0);
-        string stringSubmision = parameters[0].Replace("$", "").Replace(",", "");
+        string stringSubmision = parameters[0].Replace("$", "").Replace(",", "").Trim();
         int intSubmission;
-        if (!int.TryParse(parameters[0], out intSubmission))
+        if (!int.TryParse(stringSubmision, out intSubmission))
         {
             yield return "sendtochaterror Invalid number.";
             yield break;
@@ -208,7 +225,7 @@ public class ArtPricingScript : MonoBehaviour {
             yield break;
         }
         int take = ("012".Contains(stringSubmision[1]) && stringSubmision[0] == '1') 
-            ? 2 : 1;
+                ? 2 : 1;
         int submittedBase = int.Parse(stringSubmision.Take(take).Join(""));
         stringSubmision = stringSubmision.Remove(0, take);
         Debug.Log(stringSubmision);
@@ -219,56 +236,11 @@ public class ArtPricingScript : MonoBehaviour {
         }
         int submittedMultiplier = stringSubmision.Length;
         yield return null;
-
-        while (selectedBaseVal < submittedBase)
-        {
-            rightArrow.OnInteract();
-            yield return new WaitForSeconds(0.1f);
-        }
-        while (selectedBaseVal > submittedBase)
-        {
-            leftArrow.OnInteract();
-            yield return new WaitForSeconds(0.1f);
-        }
-        while (selectedMultiplier < submittedMultiplier)
-        {
-            upArrow.OnInteract();
-            yield return new WaitForSeconds(0.1f);
-        }
-        while (selectedMultiplier > submittedMultiplier)
-        {
-            downArrow.OnInteract();
-            yield return new WaitForSeconds(0.1f);
-        }
-        submitButton.OnInteract();
-        yield return new WaitForSeconds(0.1f);
+        yield return Submit(submittedBase, submittedMultiplier);
 
     }
-
     IEnumerator TwitchHandleForcedSolve ()
     {
-        while (selectedBaseVal < targetBaseVal)
-        {
-            rightArrow.OnInteract();
-            yield return new WaitForSeconds(0.1f);
-        }
-        while (selectedBaseVal > targetBaseVal)
-        {
-            leftArrow.OnInteract();
-            yield return new WaitForSeconds(0.1f);
-        }
-        while (selectedMultiplier < targetMultiplier)
-        {
-            upArrow.OnInteract();
-            yield return new WaitForSeconds(0.1f);
-        }
-        while (selectedMultiplier > targetMultiplier)
-        {
-            downArrow.OnInteract();
-            yield return new WaitForSeconds(0.1f);
-        }
-        submitButton.OnInteract();
-        yield return new WaitForSeconds(0.1f);
-
+        yield return Submit(targetBaseVal, targetMultiplier);
     }
 }
