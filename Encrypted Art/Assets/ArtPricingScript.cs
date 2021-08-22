@@ -202,7 +202,6 @@ public class ArtPricingScript : MonoBehaviour {
         while (selectedMultiplier != submittedMultiplier)
             yield return Press(selectedMultiplier < submittedMultiplier ? upArrow : downArrow, 0.15f);
         yield return Press(submitButton, 0.15f);
-        submitButton.OnInteract();
     }
 
     IEnumerator ProcessTwitchCommand (string command)
