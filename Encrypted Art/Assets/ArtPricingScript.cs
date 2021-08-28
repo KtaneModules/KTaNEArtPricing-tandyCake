@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using System.Text.RegularExpressions;
 using KModkit;
 using Rnd = UnityEngine.Random;
 
@@ -198,44 +199,53 @@ public class ArtPricingScript : MonoBehaviour {
     IEnumerator Submit(int submittedBase, int submittedMultiplier)
     {
         while (selectedBaseVal != submittedBase)
-            yield return Press(selectedBaseVal < submittedBase ? rightArrow : leftArrow, 0.15f);
+            yield return Press(selectedBaseVal < submittedBase ? rightArrow : leftArrow, 0.1f);
         while (selectedMultiplier != submittedMultiplier)
-            yield return Press(selectedMultiplier < submittedMultiplier ? upArrow : downArrow, 0.15f);
-        yield return Press(submitButton, 0.15f);
+            yield return Press(selectedMultiplier < submittedMultiplier ? upArrow : downArrow, 0.1f);
+        yield return Press(submitButton, 0.1f);
     }
 
     IEnumerator ProcessTwitchCommand (string command)
     {
         command = command.Trim().ToUpperInvariant();
         List<string> parameters = command.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-        if ((parameters[0] != "SUBMIT" && parameters[0] != "PAY") || parameters.Count != 2)
-            yield break;
-        parameters.RemoveAt(0);
-        string stringSubmision = parameters[0].Replace("$", "").Replace(",", "").Trim();
-        int intSubmission;
-        if (!int.TryParse(stringSubmision, out intSubmission))
+        Match m = Regex.Match(command, @"^(?:PAY|SUBMIT)\s+\$?([\d,]+)$");
+        int baseVal;
+        int mult;
+
+        if (m.Success)
         {
-            yield return "sendtochaterror Invalid number.";
-            yield break;
+            string val = int.Parse( m.Groups[1].Value.Replace(",", "") ).ToString();
+            if (val == "10")
+            {
+                baseVal = 1;
+                mult = 1;
+            }
+            else if (val.Length <= 1 || val.Length > 6)
+            {
+                yield return "sendtochaterror Invalid number length " + val.Length;
+                yield break;
+            }
+            else if (val.StartsWith("10") || val.StartsWith("11") || val.StartsWith("12"))
+            {
+                baseVal = int.Parse(val.Substring(0, 2));
+                mult = val.Substring(2).Length;
+            }
+            else
+            {
+                baseVal = val.First() - '0';
+                mult = val.Length - 1;
+            }
+            if (baseVal < 1 || baseVal > 12)
+                yield return "sendtochaterror Unexpected value of submitted base " + baseVal;
+            else if (mult < 1 || mult > 4)
+                yield return "sendtochaterror Unexpected value of submitted multiplier " + Math.Pow(10, mult) + " (" + mult + ")";
+            else
+            {
+                yield return null;
+                yield return Submit(baseVal, mult);
+            }
         }
-        if (stringSubmision.Length == 1)
-        {
-            yield return "sendtochaterror Invalid number length.";
-            yield break;
-        }
-        int take = ("012".Contains(stringSubmision[1]) && stringSubmision[0] == '1') 
-                ? 2 : 1;
-        int submittedBase = int.Parse(stringSubmision.Take(take).Join(""));
-        stringSubmision = stringSubmision.Remove(0, take);
-        Debug.Log(stringSubmision);
-        if (stringSubmision.Length < 1 || stringSubmision.Length > 4 || stringSubmision.Any(x => x != '0'))
-        {
-            yield return "sendtochaterror Invalid number.";
-            yield break;
-        }
-        int submittedMultiplier = stringSubmision.Length;
-        yield return null;
-        yield return Submit(submittedBase, submittedMultiplier);
 
     }
     IEnumerator TwitchHandleForcedSolve ()
