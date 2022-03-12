@@ -163,7 +163,7 @@ public class ArtPricingScript : MonoBehaviour {
     {
         int[] center = new int[] { 5, 6, 9, 10 }.Select(x => decryptedPicture[x]).ToArray();
         int binary = Convert.ToInt32( center.Join(""), 2 );
-        int[] multiplierTable = new int[16] { 1, 3, 4, 1, 1, 3, 2, 4, 1, 4, 2, 3, 3, 2, 4, 2 };
+        int[] multiplierTable = new int[16] { 1, 1, 2, 2, 3, 4, 4, 3, 3, 4, 4, 3, 2, 2, 1, 1 };
         targetMultiplier = multiplierTable[binary]; //The above table works opposite from the one in the manual. It uses the center converted to binary as a key to obtain the correct exponent for 10.
         targetAnswer = targetBaseVal * (int)Math.Pow(10, targetMultiplier);
     }
